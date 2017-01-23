@@ -50,8 +50,19 @@ function matchmake(socket) {
         socket.join(room);
         rooms[peer.id] = room;
         rooms[socket.id] = room;
-        peer.emit('game_start', {'name': users[socket.id], 'room': room});
-        socket.emit('game_start', {'name': users[peer.id], 'room': room});
+
+        var countdown = 5;
+        var interval = setInterval(function() {
+            if (countdown == 0) {
+                clearInterval(interval);
+                peer.emit('game_start', {'name': users[peer.id], 'room': room, 'opponent': users[socket.id]});
+                socket.emit('game_start', {'name': users[socket.id], 'room': room, 'opponent': users[peer.id]});
+            }            
+            peer.emit('game_countdown', countdown);
+            socket.emit('game_countdown', countdown);
+            countdown--;
+        }, 1000);
+
     } else {
         queue.push(socket);
         socket.emit('game_wait');

@@ -3,7 +3,9 @@ $(function() {
     var connected_users;
     var username = '';
     var clientId = '';
+    var score = 0;
 
+    //bug when another connection is opened before someone sets their username
     socket.on('connected_users', function(connected_users, users) {
         clientId = socket.io.engine.id;
         users[clientId] = "Anon#" + connected_users;
@@ -48,6 +50,21 @@ $(function() {
 
     socket.on('game_wait', function() {
         $("#log").text("Waiting for game");
+    });
+
+    socket.on('game_countdown', function(timer) {
+        $("#timer").text("Game starting in: " + timer);
+    });
+
+    socket.on('game_start', function(data) {
+        $("#player_name").text(data.name);
+        $("#player_score").text(0);
+        $("#opponent_name").text(data.opponent);
+        $("#opponent_score").text(0);
+        //start game loop
+        while (score < 2) {
+            
+        }
     });
 });
 
