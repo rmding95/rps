@@ -5,16 +5,18 @@ $(function() {
     var clientId = '';
     var score = 0;
 
-    //bug when another connection is opened before someone sets their username
+    $("#game_area").hide();
+    $("#loading").hide();
+
     socket.on('connected_users', function(connected_users, users) {
         clientId = socket.io.engine.id;
-        users[clientId] = "Anon#" + connected_users;
         updateUserList(users);
         $("#username").text("Username: " + users[clientId]);
         $("#user_count").text("Users Connected: " + connected_users);
     });
 
     $("#find_game").click(function() {
+        $("#loading").show();
         username_field = $("#username_input").val();
         console.log(username_field);
         if (username_field.length != 0) {
@@ -34,6 +36,8 @@ $(function() {
     });
 
     socket.on('game_countdown', function(timer) {
+        $("#loading").hide();
+        $("#game_area").show();
         $("#timer").text("Game starting in: " + timer);
     });
 
@@ -48,6 +52,7 @@ $(function() {
 
     });
 
+    //probably want to hide or deactivate buttons when we're done
     socket.on('activate_game_buttons', function(round, data) {
         $("#rock").click(function() {
             socket.emit('process_round', "rock", round, data);
@@ -66,7 +71,7 @@ $(function() {
         $("#log").append($('<p>').text("Round " + round + ": " + data.name + " chooses " + choice));
     });
 
-    socket.on('process', function(winner, round, data) {
+    socket.on('process', function(winner, loser, round, data) {
         if (winner.player != "tie") {
             $("#log").append($('<p>').text(winner.player + " wins round " + round));
             if (winner.name == data.name) {

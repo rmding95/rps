@@ -6,7 +6,7 @@ var io = require('socket.io')(http);
 var users = {};
 var rooms = {};
 var queue = [];
-var player_choices = [];
+var player_choices = {};
 app.use(express.static('static'));
 
 app.get('/', function(req, res) {
@@ -24,6 +24,7 @@ io.on('connection', function(socket) {
 
     var clients_in_the_room = io.sockets.adapter.rooms; 
     console.log(Object.keys(clients_in_the_room).length);
+    users[socket.id] = "Anon";
     io.emit('connected_users', Object.keys(clients_in_the_room).length, users);
     for (var clientId in clients_in_the_room ) {
         console.log('client: %s', clientId); //Seeing is believing 
@@ -38,13 +39,17 @@ io.on('connection', function(socket) {
     });
 
     socket.on('process_round', function(choice, round, data) {
-        io.to(data.room).emit('log_turn', choice, round, data);
-        if (player_choices.length < 2) {
-            player_choices.push({'player': data.name, 'choice': choice});
+        if (!(data.room in player_choices)) {
+            player_choices[data.room] = [];
         }
-        if (player_choices.length >= 2) {
-            var player1 = player_choices.pop();
-            var player2 = player_choices.pop();
+        //later change log to show results after round is over
+        io.to(data.room).emit('log_turn', choice, round, data);
+        if (player_choices[data.room].length < 2) {
+            player_choices[data.room].push({'player': data.name, 'choice': choice});
+        }
+        if (player_choices[data.room].length >= 2) {
+            var player1 = player_choices[data.room].pop();
+            var player2 = player_choices[data.room].pop();
             //1 for player 1 win, 0 for tie, -1 for player2 win
             if (player1.choice == "rock" && player2.choice == "scissors" || player1.choice == "paper" && 
                 player2.choice == "rock" || player1.choice == "scissors" && player2.choice == "paper") {
