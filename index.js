@@ -6,6 +6,7 @@ var io = require('socket.io')(http);
 var users = {};
 var rooms = {};
 var queue = [];
+var player_choices = [];
 app.use(express.static('static'));
 
 app.get('/', function(req, res) {
@@ -36,9 +37,36 @@ io.on('connection', function(socket) {
         io.emit('update_all', users);
     });
 
-    socket.on('turn', function(msg) {
-        console.log(msg);
-        io.emit('turn', msg);
+    socket.on('process_round', function(choice, round, data) {
+        io.to(data.room).emit('log_turn', choice, round, data);
+        if (player_choices.length < 2) {
+            player_choices.push({'player': data.name, 'choice': choice});
+        }
+        if (player_choices.length >= 2) {
+            var player1 = player_choices.pop();
+            var player2 = player_choices.pop();
+            //1 for player 1 win, 0 for tie, -1 for player2 win
+            if (player1.choice == "rock" && player2.choice == "scissors" || player1.choice == "paper" && 
+                player2.choice == "rock" || player1.choice == "scissors" && player2.choice == "paper") {
+                io.to(data.room).emit('process', player1, round, data);
+            }  else if (player2.choice == "rock" && player1.choice == "scissors" || player2.choice == "paper" && 
+                player1.choice == "rock" || player2.choice == "scissors" && player1.choice == "paper") {
+                io.to(data.room).emit('process', player2, round, data);
+            } else {
+                io.to(data.room).emit('process', {'player': "tie", 'choice': choice}, round, data);
+            }
+        } 
+    });
+
+    socket.on('round_timer_start', function(round, data) {
+        var countdown = 10;
+        var interval = setInterval(function() {
+            if (countdown == 0) {
+                clearInterval(interval);
+                //event to end round
+            }
+        }, 1000);
+        socket.emit('activate_game_buttons', round, data);
     });
 });
 

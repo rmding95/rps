@@ -29,25 +29,6 @@ $(function() {
         $("#username").text("Username: " + msg[clientId]);
     });
 
-    $("#rock").click(function() {
-        console.log("rock");
-        socket.emit('turn', "rock");
-    });
-
-    $("#paper").click(function() {
-        console.log("rock");
-        socket.emit('turn', "paper");
-    });
-
-    $("#scissors").click(function() {
-        console.log("rock");
-        socket.emit('turn', "scissors");
-    });   
-
-    socket.on('turn', function(msg) {
-        $("#log").append($('<li>').text(msg));
-    });
-
     socket.on('game_wait', function() {
         $("#log").text("Waiting for game");
     });
@@ -61,9 +42,39 @@ $(function() {
         $("#player_score").text(0);
         $("#opponent_name").text(data.opponent);
         $("#opponent_score").text(0);
+        var round = 1;
         //start game loop
-        while (score < 2) {
-            
+        socket.emit('round_timer_start', round, data);
+
+    });
+
+    socket.on('activate_game_buttons', function(round, data) {
+        $("#rock").click(function() {
+            socket.emit('process_round', "rock", round, data);
+        });
+
+        $("#paper").click(function() {
+            socket.emit('process_round', "paper", round, data);
+        });
+
+        $("#scissors").click(function() {
+            socket.emit('process_round', "scissors", round, data);
+        });   
+    });
+
+    socket.on('log_turn', function(choice, round, data) {
+        $("#log").append($('<p>').text("Round " + round + ": " + data.name + " chooses " + choice));
+    });
+
+    socket.on('process', function(winner, round, data) {
+        if (winner.player != "tie") {
+            $("#log").append($('<p>').text(winner.player + " wins round " + round));
+            if (winner.name == data.name) {
+                score++;
+                $("#player_score").text(score);
+            }
+        } else {
+            $("#log").append($('<p>').text("Round " + round + " was a tie"));
         }
     });
 });
