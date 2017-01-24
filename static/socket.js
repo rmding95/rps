@@ -71,7 +71,7 @@ $(function() {
         $("#log").append($('<p>').text("Round " + round + ": " + data.name + " chooses " + choice));
     });
 
-    socket.on('process', function(winner, loser, round, data) {
+    socket.on('process', function(winner, round, data) {
         if (winner.player != "tie") {
             $("#log").append($('<p>').text(winner.player + " wins round " + round));
             if (winner.name == data.name) {
