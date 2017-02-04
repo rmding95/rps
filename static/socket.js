@@ -41,19 +41,20 @@ $(function() {
         $("#timer").text("Game starting in: " + timer);
     });
 
-    socket.on('game_start', function(data, gameData) {
-        console.log(gameData);
+    socket.on('game_start', function(data, game_data) {
+        console.log(game_data);
+        //$("#round_number").text(game_data.current_round);
         $("#player_name").text(data.name);
         $("#player_score").text(0);
         $("#opponent_name").text(data.opponent);
         $("#opponent_score").text(0);
         //start game loop
         socket.emit('round_timer_start', data);
-
     });
 
     //probably want to hide or deactivate buttons when we're done
-    socket.on('activate_game_buttons', function(data) {
+    socket.on('activate_game_buttons', function(data, current_round) {
+        $("#round_number").text(current_round);
         $("#rock").click(function() {
             socket.emit('process_round', "rock", data);
         });
@@ -71,16 +72,21 @@ $(function() {
         $("#log").append($('<p>').text("Round " + round + ": " + data.name + " chooses " + choice));
     });
 
-    socket.on('process', function(winner, round, data) {
-        if (winner.player != "tie") {
-            $("#log").append($('<p>').text(winner.player + " wins round " + round));
-            if (winner.name == data.name) {
-                score++;
-                $("#player_score").text(score);
-            }
+    socket.on('update_game_state', function(winner, loser, round, tie, data) {
+        $("#rock").prop('onclick', null).unbind('click');
+        $("#paper").prop('onclick', null).unbind('click');
+        $("#scissors").prop('onclick', null).unbind('click');
+        if (!tie) {
+            $("#log").append($('<p>').text(winner.name + " wins round " + round));
         } else {
             $("#log").append($('<p>').text("Round " + round + " was a tie"));
         }
+        if (username == winner.name) {
+            $("#player_score").text(winner.score);
+        } else {
+            $("#opponent_score").text(winner.score);
+        }
+        socket.emit('round_timer_start', data);
     });
 });
 

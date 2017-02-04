@@ -14,6 +14,14 @@ app.get('/', function(req, res) {
     res.sendFile(__dirname + '/index.html');
 });
 
+class TurnInfo {
+    constructor(name, move, score) {
+        this.name = name;
+        this.move = move;
+        this.score = score;
+    }
+}
+
 io.on('connection', function(socket) {
     console.log('a user connected');
 
@@ -39,32 +47,46 @@ io.on('connection', function(socket) {
         io.emit('update_all', users);
     });
 
-    socket.on('process_round', function(choice, round, data) {
+    socket.on('process_round', function(choice, data) {
         if (!(data.room in player_choices)) {
             player_choices[data.room] = [];
         }
         //later change log to show results after round is over
-        io.to(data.room).emit('log_turn', choice, round, data);
+        socket.emit('log_turn', choice, game_data[data.room].current_round, data);
         if (player_choices[data.room].length < 2) {
             player_choices[data.room].push({'player': data.name, 'choice': choice});
         }
         if (player_choices[data.room].length >= 2) {
             var player1 = player_choices[data.room].pop();
+            var player1_name = player1.player;
             var player2 = player_choices[data.room].pop();
+            var player2_name = player2.player;
+            var room_game_data = game_data[data.room];
+            room_game_data[player1_name].last_move = player1.choice;
+            room_game_data[player1_name].moves.push(player1.choice);
+            room_game_data[player2_name].last_move = player2.choice;
+            room_game_data[player1_name].moves.push(player1.choice);
             //1 for player 1 win, 0 for tie, -1 for player2 win
+            var player1_turn_info = new TurnInfo(player1_name, player1.choice, room_game_data[player1_name].score);
+            var player2_turn_info = new TurnInfo(player2_name, player2.choice, room_game_data[player2_name].score);
             if (player1.choice == "rock" && player2.choice == "scissors" || player1.choice == "paper" && 
                 player2.choice == "rock" || player1.choice == "scissors" && player2.choice == "paper") {
-                io.to(data.room).emit('process', player1, round, data);
+                room_game_data[player1_name].score = room_game_data[player1_name].score + 1;
+                player1_turn_info.score = player1_turn_info.score + 1;
+                io.to(data.room).emit('update_game_state', player1_turn_info, player2_turn_info, room_game_data.current_round, false, data);
             }  else if (player2.choice == "rock" && player1.choice == "scissors" || player2.choice == "paper" && 
                 player1.choice == "rock" || player2.choice == "scissors" && player1.choice == "paper") {
-                io.to(data.room).emit('process', player2, round, data);
+                room_game_data[player2_name].score = room_game_data[player2_name].score + 1;
+                player2_turn_info.score = player2_turn_info.score + 1;
+                io.to(data.room).emit('update_game_state', player2_turn_info, player1_turn_info, room_game_data.current_round, false, data);
             } else {
-                io.to(data.room).emit('process', {'player': "tie", 'choice': choice}, round, data);
+                io.to(data.room).emit('update_game_state', player1_turn_info, player2_turn_info, room_game_data.current_round, true, data);
             }
         } 
     });
 
     socket.on('round_timer_start', function(data) {
+        game_data[data.room].current_round = game_data[data.room].current_round + 1;
         var countdown = 10;
         var interval = setInterval(function() {
             if (countdown == 0) {
@@ -72,8 +94,9 @@ io.on('connection', function(socket) {
                 //end round event
             }
         }, 1000);
-        socket.emit('activate_game_buttons', data);
+        socket.emit('activate_game_buttons', data, game_data[data.room].current_round);
     });
+
 });
 
 function matchmake(socket) {
@@ -87,9 +110,9 @@ function matchmake(socket) {
 
         //initialize game data objects once connection between two users is established
         //game_data holds all the data that one instance of the game needs
-        //probably consolidate player_choices into game_data
         //use randomly generated gameid as key
-        game_data[room] = {'current_round': 1, [users[socket.id]]: {'id': socket.id, 'score': 0, 'moves': [], 'last_move': ''},
+        //make classes later
+        game_data[room] = {'current_round': 0, [users[socket.id]]: {'id': socket.id, 'score': 0, 'moves': [], 'last_move': ''},
                          [users[peer.id]]: {'id': peer.id, 'score': 0, 'moves': [], 'last_move': ''}, 'winner': ''};
         
         var countdown = 5;
