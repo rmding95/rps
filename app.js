@@ -7,6 +7,7 @@ var users = {};
 var rooms = {};
 var queue = [];
 var player_choices = {};
+var game_data = {};
 app.use(express.static('static'));
 
 app.get('/', function(req, res) {
@@ -63,15 +64,15 @@ io.on('connection', function(socket) {
         } 
     });
 
-    socket.on('round_timer_start', function(round, data) {
+    socket.on('round_timer_start', function(data) {
         var countdown = 10;
         var interval = setInterval(function() {
             if (countdown == 0) {
                 clearInterval(interval);
-                //event to end round
+                //end round event
             }
         }, 1000);
-        socket.emit('activate_game_buttons', round, data);
+        socket.emit('activate_game_buttons', data);
     });
 });
 
@@ -84,12 +85,21 @@ function matchmake(socket) {
         rooms[peer.id] = room;
         rooms[socket.id] = room;
 
+        //initialize game data objects once connection between two users is established
+        //game_data holds all the data that one instance of the game needs
+        //probably consolidate player_choices into game_data
+        //use randomly generated gameid as key
+        game_data[room] = {'current_round': 1, [users[socket.id]]: {'id': socket.id, 'score': 0, 'moves': [], 'last_move': ''},
+                         [users[peer.id]]: {'id': peer.id, 'score': 0, 'moves': [], 'last_move': ''}, 'winner': ''};
+        
         var countdown = 5;
         var interval = setInterval(function() {
             if (countdown == 0) {
                 clearInterval(interval);
-                peer.emit('game_start', {'name': users[peer.id], 'room': room, 'opponent': users[socket.id]});
-                socket.emit('game_start', {'name': users[socket.id], 'room': room, 'opponent': users[peer.id]});
+                peer.emit('game_start', {'name': users[peer.id], 'room': room, 
+                        'opponent': users[socket.id]}, game_data[room]);
+                socket.emit('game_start', {'name': users[socket.id], 'room': room, 
+                        'opponent': users[peer.id]}, game_data[room]);
             }            
             peer.emit('game_countdown', countdown);
             socket.emit('game_countdown', countdown);
@@ -102,6 +112,6 @@ function matchmake(socket) {
     }
 }
 
-http.listen(80, function() {
+http.listen(3000, function() {
     console.log('listening on *:3000');
 });

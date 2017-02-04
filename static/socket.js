@@ -41,29 +41,29 @@ $(function() {
         $("#timer").text("Game starting in: " + timer);
     });
 
-    socket.on('game_start', function(data) {
+    socket.on('game_start', function(data, gameData) {
+        console.log(gameData);
         $("#player_name").text(data.name);
         $("#player_score").text(0);
         $("#opponent_name").text(data.opponent);
         $("#opponent_score").text(0);
-        var round = 1;
         //start game loop
-        socket.emit('round_timer_start', round, data);
+        socket.emit('round_timer_start', data);
 
     });
 
     //probably want to hide or deactivate buttons when we're done
-    socket.on('activate_game_buttons', function(round, data) {
+    socket.on('activate_game_buttons', function(data) {
         $("#rock").click(function() {
-            socket.emit('process_round', "rock", round, data);
+            socket.emit('process_round', "rock", data);
         });
 
         $("#paper").click(function() {
-            socket.emit('process_round', "paper", round, data);
+            socket.emit('process_round', "paper", data);
         });
 
         $("#scissors").click(function() {
-            socket.emit('process_round', "scissors", round, data);
+            socket.emit('process_round', "scissors", data);
         });   
     });
 
