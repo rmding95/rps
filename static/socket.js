@@ -17,6 +17,7 @@ $(function() {
 
     $("#find_game").click(function() {
         $("#loading").show();
+        $("#results").empty();
         username_field = $("#username_input").val();
         console.log(username_field);
         if (username_field.length != 0) {
@@ -49,7 +50,7 @@ $(function() {
         $("#opponent_name").text(data.opponent);
         $("#opponent_score").text(0);
         //start game loop
-        socket.emit('round_timer_start', data);
+        socket.emit('round_timer_start', data, 1);
     });
 
     //probably want to hide or deactivate buttons when we're done
@@ -73,20 +74,26 @@ $(function() {
     });
 
     socket.on('update_game_state', function(winner, loser, round, tie, data) {
-        $("#rock").prop('onclick', null).unbind('click');
-        $("#paper").prop('onclick', null).unbind('click');
-        $("#scissors").prop('onclick', null).unbind('click');
+        unbindGameClickEvents();
         if (!tie) {
             $("#log").append($('<p>').text(winner.name + " wins round " + round));
         } else {
             $("#log").append($('<p>').text("Round " + round + " was a tie"));
         }
-        if (username == winner.name) {
-            $("#player_score").text(winner.score);
-        } else {
-            $("#opponent_score").text(winner.score);
-        }
-        socket.emit('round_timer_start', data);
+
+        $("#player_score").text(winner.score);
+        $("#opponent_score").text(winner.score);
+
+        socket.emit('round_timer_start', data, round + 1);
+    });
+
+    socket.on('end_game', function(winner, loser, game_data) {
+        unbindGameClickEvents();
+        $("#game_area").hide();
+        $("#results").empty();
+        $("#results").append($("<h1>").text(winner.name + " wins the match!"));
+        $("#results").append($("<h2>").text("Final score: " + winner.score + "-" + loser.score));
+        $("#results").append($("<p>").text("Click on find game to look for a new game!"));
     });
 });
 
@@ -95,5 +102,11 @@ function updateUserList(users) {
     for (var key in users) {
         $("#user_list").append($('<li>').text(users[key]));
     }
+}
+
+function unbindGameClickEvents() {
+    $("#rock").prop('onclick', null).unbind('click');
+    $("#paper").prop('onclick', null).unbind('click');
+    $("#scissors").prop('onclick', null).unbind('click');
 }
 

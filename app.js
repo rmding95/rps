@@ -8,6 +8,7 @@ var rooms = {};
 var queue = [];
 var player_choices = {};
 var game_data = {};
+var win_score_threshold = 3;
 app.use(express.static('static'));
 
 app.get('/', function(req, res) {
@@ -57,6 +58,7 @@ io.on('connection', function(socket) {
             player_choices[data.room].push({'player': data.name, 'choice': choice});
         }
         if (player_choices[data.room].length >= 2) {
+            console.log("calculating scores");
             var player1 = player_choices[data.room].pop();
             var player1_name = player1.player;
             var player2 = player_choices[data.room].pop();
@@ -65,7 +67,7 @@ io.on('connection', function(socket) {
             room_game_data[player1_name].last_move = player1.choice;
             room_game_data[player1_name].moves.push(player1.choice);
             room_game_data[player2_name].last_move = player2.choice;
-            room_game_data[player1_name].moves.push(player1.choice);
+            room_game_data[player2_name].moves.push(player2.choice);
             //1 for player 1 win, 0 for tie, -1 for player2 win
             var player1_turn_info = new TurnInfo(player1_name, player1.choice, room_game_data[player1_name].score);
             var player2_turn_info = new TurnInfo(player2_name, player2.choice, room_game_data[player2_name].score);
@@ -73,20 +75,29 @@ io.on('connection', function(socket) {
                 player2.choice == "rock" || player1.choice == "scissors" && player2.choice == "paper") {
                 room_game_data[player1_name].score = room_game_data[player1_name].score + 1;
                 player1_turn_info.score = player1_turn_info.score + 1;
-                io.to(data.room).emit('update_game_state', player1_turn_info, player2_turn_info, room_game_data.current_round, false, data);
+                if (player1_turn_info.score >= win_score_threshold) {
+                    io.to(data.room).emit('end_game', player1_turn_info, player2_turn_info, room_game_data);
+                } else {
+                    io.to(data.room).emit('update_game_state', player1_turn_info, player2_turn_info, room_game_data.current_round, false, data);
+                }
             }  else if (player2.choice == "rock" && player1.choice == "scissors" || player2.choice == "paper" && 
                 player1.choice == "rock" || player2.choice == "scissors" && player1.choice == "paper") {
                 room_game_data[player2_name].score = room_game_data[player2_name].score + 1;
                 player2_turn_info.score = player2_turn_info.score + 1;
-                io.to(data.room).emit('update_game_state', player2_turn_info, player1_turn_info, room_game_data.current_round, false, data);
+                if (player1_turn_info.score >= win_score_threshold) {
+                    io.to(data.room).emit('end_game', player2_turn_info, player1_turn_info, room_game_data);
+                } else {
+                    io.to(data.room).emit('update_game_state', player2_turn_info, player1_turn_info, room_game_data.current_round, false, data);
+                }
             } else {
                 io.to(data.room).emit('update_game_state', player1_turn_info, player2_turn_info, room_game_data.current_round, true, data);
             }
         } 
     });
 
-    socket.on('round_timer_start', function(data) {
-        game_data[data.room].current_round = game_data[data.room].current_round + 1;
+    socket.on('round_timer_start', function(data, round) {
+        console.log("starting new round");
+        game_data[data.room].current_round = round;
         var countdown = 10;
         var interval = setInterval(function() {
             if (countdown == 0) {
